@@ -290,6 +290,140 @@ SQLite データベース（`opencode.db` または `opencode-<channel>.db`）
 
 ---
 
+---
+
+## 9. ChatGPT（公式エクスポート）
+
+### エクスポート方法
+
+ChatGPT の設定 → データコントロール → データのエクスポート → メールで届く ZIP ファイル
+
+### ZIP の内容
+
+```
+chatgpt-export-YYYY-MM-DD.zip
+└── conversations.json   ← このファイルのみ使用する
+```
+
+### `conversations.json` の構造
+
+```json
+[
+  {
+    "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "title": "会話タイトル",
+    "create_time": 1741234567.123,
+    "update_time": 1741234599.456,
+    "mapping": {
+      "node-uuid-1": {
+        "id": "node-uuid-1",
+        "message": {
+          "id": "msg-uuid-1",
+          "author": {"role": "user"},
+          "create_time": 1741234567.123,
+          "content": {
+            "content_type": "text",
+            "parts": ["ユーザーが入力したプロンプト本文"]
+          },
+          "status": "finished_successfully"
+        },
+        "parent": "parent-node-uuid",
+        "children": ["child-node-uuid"]
+      }
+    },
+    "current_node": "node-uuid-2"
+  }
+]
+```
+
+### 抽出方法
+
+1. `conversations.json` を読み込み、各会話の `mapping` を走査
+2. `message.author.role == "user"` のノードのみ抽出
+3. `message.content.parts` の文字列要素を連結してプロンプト本文を組み立てる
+4. タイムスタンプ: `message.create_time`（Unix epoch 秒の浮動小数点 → ミリ秒に変換）
+5. `message` キーが存在しない、または `null` のノードはスキップ
+6. `project` フィールドには会話の `title`（先頭 30 文字）を使用
+
+### 注意事項
+
+- `content_type` が `"multimodal_text"` 等の場合も `parts` 配列の文字列要素を連結する
+- ZIP 内ファイルはサフィックスマッチで探索する（エクスポート日付がファイル名に含まれる場合があるため）
+- `collect_export.py --chatgpt /path/to/zip` で解析する
+
+---
+
+## 10. Gemini（Google Takeout エクスポート）
+
+### エクスポート方法
+
+Google Takeout（https://takeout.google.com） → 「Gemini アプリのアクティビティ」を選択 → ZIP ファイル
+
+### ZIP の内容（想定）
+
+```
+takeout-YYYY-MM-DD.zip
+└── Takeout/
+    └── Gemini アプリのアクティビティ/
+        └── Gemini アプリのアクティビティ.json   ← このファイルを使用
+```
+
+### データ形式
+
+Google Takeout の Gemini エクスポートは以下の 2 パターンが存在する:
+
+**パターン A: My Activity 形式（JSON）**
+
+```json
+[
+  {
+    "header": "Gemini アプリ",
+    "title": "ユーザーのプロンプト本文",
+    "time": "2026-03-01T10:00:00.000Z",
+    "products": ["Gemini"],
+    "activityControls": ["Gemini アプリのアクティビティ"]
+  }
+]
+```
+
+**パターン B: 会話形式（JSON）**
+
+```json
+[
+  {
+    "conversation_id": "xxxx",
+    "turns": [
+      {
+        "role": "user",
+        "text": "ユーザーのプロンプト本文",
+        "timestamp": "2026-03-01T10:00:00.000Z"
+      },
+      {
+        "role": "model",
+        "text": "AIの応答",
+        "timestamp": "2026-03-01T10:00:01.000Z"
+      }
+    ]
+  }
+]
+```
+
+### 抽出方法
+
+1. ZIP を展開し、`.json` ファイルを探索（"Gemini" を含むファイルを優先）
+2. パターン A・B を両方試みて成功した方で解析
+3. パターン A: `header` に "Gemini" を含む行の `title` をプロンプト、`time` をタイムスタンプとして抽出
+4. パターン B: `role == "user"` のターンを抽出
+5. どちらにも当てはまらない場合: `status: "フォーマット不明"` を返す
+6. `project` フィールドは `"Gemini"` 固定
+
+### 注意事項
+
+- `collect_export.py --gemini /path/to/takeout.zip` で解析する
+- Google Takeout の出力形式はバージョンによって変わる可能性がある
+
+---
+
 ## 共通のサンプリング戦略
 
 大量のログデータを効率的に処理するため、以下の戦略を適用する:

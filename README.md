@@ -23,6 +23,8 @@ Claude Code のスキルとして動作する、AIエージェント対話履歴
 | Google Antigravity | テキスト（ログファイル） |
 | OpenAI Codex（CLI） | JSONL（rollout セッションファイル） |
 | OpenCode | SQLite（`opencode.db` / `opencode-<channel>.db`） |
+| ChatGPT | 公式エクスポート ZIP（conversations.json） |
+| Gemini | Google Takeout ZIP（Gemini アプリのアクティビティ.json） |
 
 ## 使い方
 
@@ -34,6 +36,15 @@ Claude Code 上で `/prompt-review` を実行する。
 /prompt-review yonshogen    # 特定プロジェクトのみ
 /prompt-review yonshogen 30 # 特定プロジェクト × 過去30日分
 /prompt-review 0            # 全期間
+```
+
+ChatGPT・Gemini の公式エクスポート ZIP を追加で取り込む場合は `--chatgpt` / `--gemini` を指定する:
+
+```
+/prompt-review --chatgpt /path/to/chatgpt-export.zip
+/prompt-review --gemini /path/to/takeout.zip
+/prompt-review --chatgpt /path/to/chatgpt.zip --gemini /path/to/takeout.zip
+/prompt-review 30 --chatgpt /path/to/chatgpt.zip  # 過去30日分 + ChatGPT
 ```
 
 レポートは `reports/prompt-review-YYYY-MM-DD.md` に出力される。
@@ -66,7 +77,8 @@ prompt-review/
         └── prompt-review/
             ├── SKILL.md                  # スキル定義（実行手順）
             ├── scripts/
-            │   └── collect.py            # データ収集スクリプト
+            │   ├── collect.py            # データ収集スクリプト（ローカルツール）
+            │   └── collect_export.py     # エクスポート ZIP 解析スクリプト（ChatGPT・Gemini）
             └── references/
                 ├── data-sources.md       # ログ保存場所・形式の詳細
                 └── report-template.md    # レポート構造テンプレート

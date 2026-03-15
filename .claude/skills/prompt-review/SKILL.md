@@ -5,6 +5,7 @@ description: >
   と依頼したとき、または /prompt-review で呼び出されたときに使用する。
   過去のAIエージェント対話履歴（Claude Code, GitHub Copilot Chat, Cline, Roo Code, Windsurf,
   Antigravity, OpenCode）を読み取り、技術理解度・プロンプティングパターン・AI依存度を推定してレポートを生成する。
+  ChatGPT・Gemini のウェブアプリ版エクスポート ZIP にも対応（--chatgpt / --gemini 引数で指定）。
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Grep, Bash
 context: fork
@@ -22,6 +23,8 @@ context: fork
 - 文字列のみ → **プロジェクト名フィルタ**（部分一致）
 - 文字列 + 数値 → **プロジェクト名** + **日数フィルタ**（例: `yonshogen 30`）
 - 引数なし → 全プロジェクト横断、過去7日分（デフォルト）
+- `--chatgpt /path/to/zip` → ChatGPT エクスポート ZIP を追加で解析
+- `--gemini /path/to/zip` → Gemini Takeout ZIP を追加で解析
 
 ## ステップ1: データ収集（スクリプト実行）
 
@@ -44,6 +47,21 @@ python ~/.claude/skills/prompt-review/scripts/collect.py [OPTIONS] > /tmp/prompt
 - 文字列 + 数値（例: `yonshogen 30`） → `--project yonshogen --days 30`
 
 **重要**: スクリプトのパスは、このスキルファイルからの相対パスではなく、スキルが格納されているプロジェクトの `.claude/skills/prompt-review/scripts/collect.py` の絶対パスを使うこと。現在の作業ディレクトリ（`cwd`）を基準に `.claude/skills/prompt-review/scripts/collect.py` を指定する。
+
+### オプション: ウェブアプリエクスポートの取り込み
+
+引数に `--chatgpt` または `--gemini` が含まれる場合、以下を追加で実行する:
+
+```bash
+python .claude/skills/prompt-review/scripts/collect_export.py [OPTIONS] > /tmp/prompt-review-export-data.json
+```
+
+オプションの組み立て:
+- `--chatgpt /path/to/zip` が指定されている場合 → `--chatgpt /path/to/zip` を渡す
+- `--gemini /path/to/zip` が指定されている場合 → `--gemini /path/to/zip` を渡す
+- 日数フィルタが指定されている場合 → `--days N` も渡す
+
+収集後、`/tmp/prompt-review-data.json` の `sources` 配列に `/tmp/prompt-review-export-data.json` の `sources` 配列をマージする。マージ後の `total_messages` と `detected_tools` も更新する。
 
 ### 出力の読み取り
 
